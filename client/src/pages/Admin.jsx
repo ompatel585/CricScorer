@@ -1,277 +1,114 @@
-import { useState, useEffect } from "react";
+// src/pages/Admin.jsx
+import React, { useEffect, useState } from "react";
 import axios from "axios";
-import ScoreCard from "../components/ScoreCard";
 
-const Admin = () => {
-  const [form, setForm] = useState({
+const API = "https://your-render-backend.onrender.com/api/score";
+
+const AdminPage = () => {
+  const [scores, setScores] = useState([]);
+  const [formData, setFormData] = useState({
     team1: "",
     team2: "",
-    run1: "",
-    run2: "",
+    score1: "",
+    score2: "",
     wicket1: "",
     wicket2: "",
+    matchName: "",
+    matchType: "",
+    result: "",
   });
-  const [scores, setScores] = useState([]);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState(""); // For validation errors
-  const [editingScoreId, setEditingScoreId] = useState(null);
 
-  // Fetch scores on component mount
+  const fetchScores = async () => {
+    try {
+      const res = await axios.get(API);
+      setScores(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
-    axios
-      .get("http://localhost:5001/api/score")
-      .then((res) => {
-        setScores(res.data);
-      })
-      .catch((err) => {
-        console.error("Error fetching scores:", err);
-        setMessage("Failed to load scores.");
-      });
+    fetchScores();
   }, []);
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    setError(""); // Clear error on input change
-  };
+  const handleChange = (e) =>
+    setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // Validate form inputs
-  const validateForm = () => {
-    const run1 = Number(form.run1);
-    const run2 = Number(form.run2);
-    const wicket1 = Number(form.wicket1);
-    const wicket2 = Number(form.wicket2);
-
-    if (run1 < 0 || run2 < 0) {
-      return "Runs cannot be negative.";
-    }
-    if (run2 > run1 + 6) {
-      return "Team 2's runs cannot exceed Team 1's runs by more than 6.";
-    }
-    if (wicket1 < 0 || wicket1 > 10) {
-      return "Wickets for Team 1 must be between 0 and 10.";
-    }
-    if (wicket2 < 0 || wicket2 > 10) {
-      return "Wickets for Team 2 must be between 0 and 10.";
-    }
-    return "";
-  };
-
-  // Handle form submission (create or update)
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    const scoreData = {
-      team1: form.team1,
-      team2: form.team2,
-      run1: Number(form.run1),
-      run2: Number(form.run2),
-      wicket1: Number(form.wicket1),
-      wicket2: Number(form.wicket2),
-    };
-
-    try {
-      if (editingScoreId) {
-        // Update existing score
-        const res = await axios.put(
-          `http://localhost:5001/api/score/${editingScoreId}`,
-          scoreData
-        );
-        setScores(
-          scores.map((score) =>
-            score._id === editingScoreId ? res.data : score
-          )
-        );
-        setMessage("Score updated successfully!");
-      } else {
-        // Create new score
-        const res = await axios.post(
-          "http://localhost:5001/api/score",
-          scoreData
-        );
-        setScores([...scores, res.data]);
-        setMessage("Score added successfully!");
-      }
-
-      // Reset form
-      setForm({
-        team1: "",
-        team2: "",
-        run1: "",
-        run2: "",
-        wicket1: "",
-        wicket2: "",
-      });
-      setEditingScoreId(null);
-      setError("");
-    } catch (err) {
-      console.error(err);
-      setMessage(
-        err.response?.data?.message || "Something went wrong. Try again."
-      );
-    }
-  };
-
-  // Handle edit button click
-  const handleEdit = (score) => {
-    setForm({
-      team1: score.team1,
-      team2: score.team2,
-      run1: score.run1.toString(),
-      run2: score.run2.toString(),
-      wicket1: score.wicket1.toString(),
-      wicket2: score.wicket2.toString(),
+    await axios.post(API, formData);
+    setFormData({
+      team1: "",
+      team2: "",
+      score1: "",
+      score2: "",
+      wicket1: "",
+      wicket2: "",
+      matchName: "",
+      matchType: "",
+      result: "",
     });
-    setEditingScoreId(score._id);
-    setError("");
+    fetchScores();
   };
 
-  // Handle delete button click
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this score?")) return;
-
-    try {
-      await axios.delete(`http://localhost:5001/api/score/${id}`);
-      setScores(scores.filter((score) => score._id !== id));
-      setMessage("Score deleted successfully!");
-    } catch (err) {
-      console.error(err);
-      setMessage(err.response?.data?.message || "Failed to delete score.");
-    }
+    await axios.delete(`${API}/${id}`);
+    fetchScores();
   };
 
   return (
-    <div className="max-w-4xl mx-auto">
-      <h2 className="text-xl font-bold mb-4 text-gray-800">
-        {editingScoreId ? "Update Match Score" : "Add New Match Score"}
-      </h2>
+    <div className="p-6 max-w-4xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4 text-center text-blue-600">
+        Admin Panel
+      </h1>
 
-      {/* Form for creating or updating scores */}
-      <form
-        onSubmit={handleSubmit}
-        className="grid grid-cols-2 gap-4 bg-white shadow-md p-6 rounded-xl mb-6"
-      >
-        <input
-          type="text"
-          name="team1"
-          placeholder="Team 1"
-          value={form.team1}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="text"
-          name="team2"
-          placeholder="Team 2"
-          value={form.team2}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="number"
-          name="run1"
-          placeholder="Runs by Team 1"
-          value={form.run1}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="number"
-          name="run2"
-          placeholder="Runs by Team 2"
-          value={form.run2}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="number"
-          name="wicket1"
-          placeholder="Wickets Team 1"
-          value={form.wicket1}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
-        <input
-          type="number"
-          name="wicket2"
-          placeholder="Wickets Team 2"
-          value={form.wicket2}
-          onChange={handleChange}
-          className="border p-2 rounded"
-          required
-        />
+      <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-4 mb-6">
+        {Object.keys(formData).map((key, i) => (
+          <input
+            key={i}
+            type="text"
+            name={key}
+            value={formData[key]}
+            onChange={handleChange}
+            placeholder={key}
+            className="border rounded-lg p-2"
+            required
+          />
+        ))}
         <button
           type="submit"
-          className="col-span-2 mt-4 bg-green-600 text-white py-2 rounded hover:bg-green-700"
+          className="col-span-2 bg-blue-500 text-white rounded p-2 hover:bg-blue-600"
         >
-          {editingScoreId ? "Update Score" : "Submit Score"}
+          Add Score
         </button>
-        {editingScoreId && (
-          <button
-            type="button"
-            onClick={() => {
-              setForm({
-                team1: "",
-                team2: "",
-                run1: "",
-                run2: "",
-                wicket1: "",
-                wicket2: "",
-              });
-              setEditingScoreId(null);
-              setMessage("");
-              setError("");
-            }}
-            className="col-span-2 mt-2 bg-gray-600 text-white py-2 rounded hover:bg-gray-700"
-          >
-            Cancel Edit
-          </button>
-        )}
       </form>
 
-      {error && <p className="mt-4 text-center text-red-600">{error}</p>}
-      {message && <p className="mt-4 text-center text-blue-600">{message}</p>}
-
-      {/* Display existing scores */}
-      <h2 className="text-xl font-bold mt-8 mb-4 text-gray-800">
-        Existing Scores
-      </h2>
-      <div className="grid grid-cols-1 gap-4">
-        {scores.length > 0 ? (
-          scores.map((score) => (
-            <div key={score._id} className="flex items-center gap-4">
-              <div className="flex-1">
-                <ScoreCard score={score} />
-              </div>
-              <button
-                onClick={() => handleEdit(score)}
-                className="bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700"
-              >
-                Edit
-              </button>
-              <button
-                onClick={() => handleDelete(score._id)}
-                className="bg-red-600 text-white py-2 px-4 rounded hover:bg-red-700"
-              >
-                Delete
-              </button>
-            </div>
-          ))
-        ) : (
-          <p className="text-center text-gray-600">No scores available.</p>
-        )}
+      <div className="space-y-4">
+        {scores.map((score) => (
+          <div key={score._id} className="p-4 border rounded shadow">
+            <p>
+              <strong>
+                {score.matchName} ({score.matchType})
+              </strong>
+            </p>
+            <p>
+              {score.team1}: {score.score1}/{score.wicket1}
+            </p>
+            <p>
+              {score.team2}: {score.score2}/{score.wicket2}
+            </p>
+            <p className="text-green-600">{score.result}</p>
+            <button
+              onClick={() => handleDelete(score._id)}
+              className="mt-2 bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
       </div>
     </div>
   );
 };
 
-export default Admin;
+export default AdminPage;
